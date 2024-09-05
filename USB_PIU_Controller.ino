@@ -1,9 +1,23 @@
 #define SERIAL_DEBUG
-//#define JOYSTICK_ON
+#define JOYSTICK_ON
 
-const int muxPinA = 7;
-const int muxPinB = 8;
-const int arrow0Pin = 3;
+//ARROWS
+// 0 # 3
+// # 2 #
+// 1 # 4
+
+// PADS
+//   3
+// 2   0
+//   1
+
+const int muxPinA = 4;
+const int muxPinB = 5;
+const int arrow0Pin = 6;
+const int arrow1Pin = 7;
+const int arrow2Pin = 8;
+const int arrow3Pin = 9;
+const int arrow4Pin = 10;
 
 const int NUMBER_OF_ARROWS = 5;
 const int NUMBER_OF_PADS = 4;
@@ -25,30 +39,46 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD,
 
 void setup() {   
   pinMode(arrow0Pin, INPUT);
+  pinMode(arrow1Pin, INPUT);
+  pinMode(arrow2Pin, INPUT);
+  pinMode(arrow3Pin, INPUT);
+  pinMode(arrow4Pin, INPUT);
   pinMode(muxPinA, OUTPUT);
   pinMode(muxPinB, OUTPUT);
 
-#ifdef JOYSTICK_ON
+  #ifdef JOYSTICK_ON
   Joystick.begin();
-#endif
+  #endif
 
-#ifdef SERIAL_DEBUG
+  #ifdef SERIAL_DEBUG
   Serial.begin(19200);
-#endif
+  #endif
 }
 
 void loop() {
   ReadPads();
 
-#ifdef JOYSTICK_ON
-  if (PADS[0][0] | PADS[0][1] | PADS[0][2] | PADS[0][3]){
-    Joystick.setButton(0, TRUE);
-  }
-#endif
+  #ifdef JOYSTICK_ON
+  SetJoystickButton(0);
+  SetJoystickButton(1);
+  SetJoystickButton(2);
+  SetJoystickButton(3);
+  SetJoystickButton(4);
+  #endif
 
-#ifdef SERIAL_DEBUG
-  SerialDebug(PADS);
-#endif
+  #ifdef SERIAL_DEBUG
+  SerialDebug();
+  #endif
+}
+
+void SetJoystickButton(int arrow)
+{
+  if (PADS[arrow][0] | PADS[arrow][1] | PADS[arrow][2] | PADS[arrow][3]){
+    Joystick.setButton(arrow, 1);
+  }
+  else{
+    Joystick.setButton(arrow, 0);
+  }
 }
 
 void ReadPads(){
@@ -56,24 +86,48 @@ void ReadPads(){
     digitalWrite(muxPinA, i & 0x01);
     digitalWrite(muxPinB, i & 0x02);
     
-    TEMP_PADS[0][i] = digitalRead(arrow0Pin) == LOW;
-    Debounce(millis(), i);
+    int currentMillis = millis();
+    Debounce(currentMillis, 0, i, arrow0Pin);
+    Debounce(currentMillis, 1, i, arrow1Pin);
+    Debounce(currentMillis, 2, i, arrow2Pin);
+    Debounce(currentMillis, 3, i, arrow3Pin);
+    Debounce(currentMillis, 4, i, arrow4Pin);
   }
 }
 
-void Debounce(long currentMillis, int pad){
-  if (TEMP_PADS[0][pad] != PADS[0][pad] && abs(currentMillis - PADS_CHANGE_TIME[0][pad]) >= debounceInterval){
-    PADS[0][pad] = TEMP_PADS[0][pad];
-    PADS_CHANGE_TIME[0][pad] = currentMillis;
+void Debounce(long currentMillis, int arrow, int pad, int arrowPin){
+  TEMP_PADS[arrow][pad] = digitalRead(arrowPin) == LOW;
+  if (TEMP_PADS[arrow][pad] != PADS[arrow][pad] 
+      && abs(currentMillis - PADS_CHANGE_TIME[arrow][pad]) >= debounceInterval){
+    PADS[arrow][pad] = TEMP_PADS[arrow][pad];
+    PADS_CHANGE_TIME[arrow][pad] = currentMillis;
   }
 }
 
-void SerialDebug(bool values[5][4]){
-  byte padValue =(values[0][0] ? 1 : 0) |
-                 (values[0][1] ? 2 : 0) |
-                 (values[0][2] ? 4 : 0) |
-                 (values[0][3] ? 8 : 0);
-  Serial.print("0: ");
-  Serial.print(padValue, HEX);
+void SerialDebug(){
+  byte padValues[NUMBER_OF_ARROWS];
+  for (int i= 0; i< NUMBER_OF_ARROWS; i++){
+    padValues[i] =(PADS[i][0] ? 1 : 0) |
+                  (PADS[i][1] ? 2 : 0) |
+                  (PADS[i][2] ? 4 : 0) |
+                  (PADS[i][3] ? 8 : 0);
+    Serial.print(i); Serial.print(": "); Serial.print(padValues[i], HEX); Serial.print("  ");
+  }
+
   Serial.println();
+
+  // Serial.Print(padValues[0]);
+  // Serial.Print(" ");
+  // Serial.Print(padValues[3]);
+  // Serial.println();
+
+  // Serial.Print(" ");
+  // Serial.Print(padValues[2]);
+  // Serial.Print(" ");
+  // Serial.println();
+
+  // Serial.Print(padValues[1]);
+  // Serial.Print(" ");
+  // Serial.Print(padValues[4]);
+  // Serial.println();
 }
